@@ -126,5 +126,22 @@ data1 = data.drop(columns_to_be_dropped, axis=1)
 print(data1.head())
 
 print(data1['FraudIndicator'].value_counts(), data1['SuspiciousFlag'].value_counts(), data1['Category'].value_counts())
+import pandas as pd
+from imblearn.over_sampling import SMOTE
+from xgboost import XGBClassifier
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import classification_report
 
+# 1. Feature Engineering on your 'data1'
+# Convert Category to numbers (One-Hot Encoding)
+data_final = pd.get_dummies(data1, columns=['Category'])
+
+# Convert Timestamp to numerical (e.g., Hour of the day)
+data_final['Timestamp'] = pd.to_datetime(data_final['Timestamp'])
+data_final['Hour'] = data_final['Timestamp'].dt.hour
+data_final = data_final.drop('Timestamp', axis=1)
+
+# Define Features (X) and Target (y)
+X = data_final.drop('FraudIndicator', axis=1)
+y = data_final['FraudIndicator']
 
