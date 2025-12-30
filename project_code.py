@@ -205,7 +205,7 @@ import matplotlib.pyplot as plt
 from imblearn.over_sampling import SMOTE
 from collections import Counter
 
-
+#--------------------SMOTE ANALYSIS--------------------------------------
 # Initialize SMOTE for oversampling
 smote = SMOTE(random_state=42)
 
