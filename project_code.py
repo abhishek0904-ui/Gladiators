@@ -223,35 +223,7 @@ plt.xlabel('Fraud Indicator')
 plt.ylabel('Count')
 plt.show()
 
-
-# Retraining Logistic regression using SAMPLED Data
-
-model = DecisionTreeClassifier()
-
-# Train the model on the training data
-model.fit(X_resampled, y_resampled)
-
-# Make predictions on the testing data
-y_pred = model.predict(X_test)
-
-# Calculate and print various metrics to evaluate the model's performance
-accuracy = accuracy_score(Y_test, y_pred)
-precision = precision_score(Y_test, y_pred)
-recall = recall_score(Y_test, y_pred)
-f1 = f1_score(Y_test, y_pred)
-confusion = confusion_matrix(Y_test, y_pred)
-
-print("Model Evaluation Metrics:")
-print("Accuracy:", accuracy)
-print("Precision:", precision)
-print("Recall:", recall)
-print("F1 Score:", f1)
-print("Confusion Matrix:")
-print(confusion)
-
-
 from sklearn.model_selection import GridSearchCV, train_test_split
-from sklearn.tree import DecisionTreeClassifier
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, confusion_matrix
 from sklearn.utils import shuffle
 
