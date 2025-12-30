@@ -19,7 +19,7 @@ anamoly = pd.read_csv("/workspaces/Gladiators/.venv/anomaly_scores.csv")
 tran_data = pd.read_csv("/workspaces/Gladiators/.venv/transaction_metadata.csv")
 tran_rec = pd.read_csv("/workspaces/Gladiators/.venv/transaction_records.csv")
 
-data = [account, customer, fraud, suspision, merchant, tran_cat, amount, anamoly, tran_data, tran_rec]
+data = [account,customer,fraud,suspision,merchant,tran_cat,amount,anamoly,tran_data,tran_rec]
 for df in data:
     print(df.head())
 
@@ -126,34 +126,193 @@ data1 = data.drop(columns_to_be_dropped, axis=1)
 print(data1.head())
 
 print(data1['FraudIndicator'].value_counts(), data1['SuspiciousFlag'].value_counts(), data1['Category'].value_counts())
-import pandas as pd
-from imblearn.over_sampling import SMOTE
-from xgboost import XGBClassifier
+
+#--------------------------FEATURE ENGINEERING-------------------------
+
+# Using Feature Engineering Creating two Columns
+# Hour of Transaction = hour
+# Gap between the day of transaction and last login in days = gap
+if pd.api.types.is_datetime64_any_dtype(data['Timestamp']):
+    print("The 'Timestamp' column is already in datetime format.")
+else:
+    print("The 'Timestamp' column is not in datetime format.")
+
+data1['Timestamp1'] = pd.to_datetime(data1['Timestamp'])
+
+print(data1.dtypes)
+data1['Hour'] = data1['Timestamp1'].dt.hour
+data1['LastLogin'] = pd.to_datetime(data1['LastLogin'])
+data1['gap'] = (data1['Timestamp1'] - data1['LastLogin']).dt.days.abs()
+
+print(data1.head())
+
+#------------------DATA MODELLING----------------------------------
+X = data1.drop(['FraudIndicator','Timestamp','Timestamp1','LastLogin'],axis=1)
+Y = data1['FraudIndicator']
+
+
+from sklearn.preprocessing import LabelEncoder
+# Create an instance of LabelEncoder
+label_encoder = LabelEncoder()
+
+# Fit and transform the 'Category' column
+X['Category'] = label_encoder.fit_transform(X['Category'])
+print(X)
+
 from sklearn.model_selection import train_test_split
-from sklearn.metrics import classification_report
+X_train, X_test, Y_train, Y_test = train_test_split(X,Y,test_size=0.2)
 
-# 1. Feature Engineering on your 'data1'
-# Convert Category to numbers (One-Hot Encoding)
-data_final = pd.get_dummies(data1, columns=['Category'])
+print(X_train.shape, Y_test.shape)
 
-# Convert Timestamp to numerical (e.g., Hour of the day)
-data_final['Timestamp'] = pd.to_datetime(data_final['Timestamp'])
-data_final['Hour'] = data_final['Timestamp'].dt.hour
-data_final = data_final.drop('Timestamp', axis=1)
+# Logistic Regression model
 
-# Define Features (X) and Target (y)
-X = data_final.drop('FraudIndicator', axis=1)
-y = data_final['FraudIndicator']
-# Split into training and testing sets (Stratified to keep ratio)
-X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42, stratify=y)
-# Split into training and testing sets (Stratified to keep ratio)
-X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42, stratify=y)
+from sklearn.tree import DecisionTreeClassifier
+from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, confusion_matrix
 
-# Initialize SMOTE
+# Create a logistic regression model
+model = DecisionTreeClassifier()
+
+# Train the model on the training data
+model.fit(X_train, Y_train)
+
+# Make predictions on the testing data
+y_pred = model.predict(X_test)
+
+# Calculate the accuracy of the model
+accuracy = accuracy_score(Y_test, y_pred)
+print("Accuracy:", accuracy)
+
+#High accuracy is not often a good thing in a machine learning model as it states the problem of imbalanced dataset
+
+import seaborn as sns
+import matplotlib.pyplot as plt
+
+# Assuming you have a DataFrame 'df' with a 'FraudIndicator' column
+# Load your data into the DataFrame if not already done
+
+# Create a count plot for the 'FraudIndicator' column
+plt.figure(figsize=(8, 6))  # Optional: Adjust the figure size
+sns.countplot(data=data1, x='FraudIndicator', palette='viridis')
+plt.title('Count Plot of Fraud Indicator')
+plt.xlabel('Fraud Indicator')
+plt.ylabel('Count')
+print(plt.show())
+
+
+import pandas as pd
+import seaborn as sns
+import matplotlib.pyplot as plt
+from imblearn.over_sampling import SMOTE
+from collections import Counter
+
+
+# Initialize SMOTE for oversampling
 smote = SMOTE(random_state=42)
 
-# Resample only the training data
-X_train_balanced, y_train_balanced = smote.fit_resample(X_train, y_train)
+# Apply SMOTE to the data
+X_resampled, y_resampled = smote.fit_resample(X, Y)
 
-print(f"Original training shape: {y_train.value_counts()}")
-print(f"Balanced training shape: {y_train_balanced.value_counts()}")
+# Check the class distribution after oversampling
+print("Class distribution after oversampling:", Counter(y_resampled))
+
+# Create a count plot for the 'FraudIndicator' column after oversampling
+plt.figure(figsize=(8, 6))
+sns.countplot(data=pd.DataFrame({'FraudIndicator': y_resampled}), x='FraudIndicator', palette='viridis')
+plt.title('Count Plot of Fraud Indicator (After Oversampling)')
+plt.xlabel('Fraud Indicator')
+plt.ylabel('Count')
+plt.show()
+
+
+# Retraining Logistic regression using SAMPLED Data
+
+model = DecisionTreeClassifier()
+
+# Train the model on the training data
+model.fit(X_resampled, y_resampled)
+
+# Make predictions on the testing data
+y_pred = model.predict(X_test)
+
+# Calculate and print various metrics to evaluate the model's performance
+accuracy = accuracy_score(Y_test, y_pred)
+precision = precision_score(Y_test, y_pred)
+recall = recall_score(Y_test, y_pred)
+f1 = f1_score(Y_test, y_pred)
+confusion = confusion_matrix(Y_test, y_pred)
+
+print("Model Evaluation Metrics:")
+print("Accuracy:", accuracy)
+print("Precision:", precision)
+print("Recall:", recall)
+print("F1 Score:", f1)
+print("Confusion Matrix:")
+print(confusion)
+
+
+from sklearn.model_selection import GridSearchCV, train_test_split
+from sklearn.tree import DecisionTreeClassifier
+from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, confusion_matrix
+from sklearn.utils import shuffle
+
+# Shuffle the dataset to introduce slight randomness (you can adjust the `random_state` for different outcomes)
+X_resampled, y_resampled = shuffle(X_resampled, y_resampled, random_state=42)
+
+# Split data into train and test sets (keep the test set separate for evaluation)
+X_train, X_test, y_train, y_test = train_test_split(X_resampled, y_resampled, test_size=0.3, random_state=42)
+
+# Initialize the model
+model = DecisionTreeClassifier()
+
+# Define the hyperparameters grid for tuning
+param_grid = {
+    'max_depth': [None, 10, 25, 50,100,250],  # Maximum depth of the tree
+    'min_samples_split': [2, 10, 50,100,250],  # Minimum number of samples required to split an internal node
+    'min_samples_leaf': [1, 10, 30,75,100],    # Minimum number of samples required to be at a leaf node
+    'criterion': ['gini', 'entropy'] # Criterion to measure the quality of a split
+}
+
+# Initialize GridSearchCV for hyperparameter tuning
+grid_search = GridSearchCV(estimator=model, param_grid=param_grid, cv=5, scoring='accuracy', n_jobs=-1, verbose=1)
+
+# Perform the grid search to find the best hyperparameters
+grid_search.fit(X_train, y_train)
+
+# Best parameters found by GridSearchCV
+print("Best Hyperparameters:", grid_search.best_params_)
+
+# Train the model using the best hyperparameters
+best_model = grid_search.best_estimator_
+
+# Make predictions on the test data
+y_pred = best_model.predict(X_test)
+
+# Calculate and print various metrics to evaluate the model's performance
+accuracy = accuracy_score(y_test, y_pred)
+precision = precision_score(y_test, y_pred)
+recall = recall_score(y_test, y_pred)
+f1 = f1_score(y_test, y_pred)
+confusion = confusion_matrix(y_test, y_pred)
+
+print("Model Evaluation Metrics:")
+print("Accuracy:", accuracy)
+print("Precision:", precision)
+print("Recall:", recall)
+print("F1 Score:", f1)
+print("Confusion Matrix:")
+print(confusion)
+
+
+# Inference on new/unseen data (for example, use a separate unseen dataset or a specific test sample)
+# Here we simulate it by using the first row from the X_test
+unseen_sample = X_test.iloc[59].values.reshape(1, -1)  # Reshaping for a single sample
+
+# Predict the label for the unseen sample
+inference_prediction = best_model.predict(unseen_sample)
+
+# Map prediction result to 'fraud' or 'not fraud'
+fraud_status = "Fraud" if inference_prediction[0] == 1 else "Not Fraud"
+
+print("Inference Prediction for Unseen Sample:", fraud_status)
+
+
