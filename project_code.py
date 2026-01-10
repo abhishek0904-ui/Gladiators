@@ -66,7 +66,6 @@ for column in data.columns:
 import pandas as pd
 import seaborn as sns
 import matplotlib.pyplot as plt
-# Assuming 'data' is your DataFrame containing numerical columns
 
 # Get the number of numerical columns
 num_cols = len(data.select_dtypes(include=['number']).columns)
@@ -118,26 +117,7 @@ plt.title('Correlation Heatmap for Numeric Columns')
 
 plt.show()
 
-# Dropping the columns as of now they are not mush corelated & also wouldn't damper the performance of model
-
-#------------------COLLUSION------------------
-
-# Create unique Link ID between Customer and Merchant
-data['Link_ID'] = data['CustomerID'].astype(str) + "_" + data['MerchantID'].astype(str)
-
-# Feature 1: How often do these two transact?
-data['Transaction_Frequency'] = data.groupby('Link_ID')['TransactionAmount'].transform('count')
-
-# Feature 2: What is the total volume of money moving between them?
-data['Total_Linked_Value'] = data.groupby('Link_ID')['TransactionAmount'].transform('sum')
-
-
 #---------------Benford's Law Application-----------------
-
-# Extract leading digit and map to Benford Probability
-def get_first_digit(amount):
-    s = str(abs(amount)).replace('.', '').lstrip('0')
-    return int(s[0]) if s else 0
 
 data['First_Digit'] = data['TransactionAmount'].apply(get_first_digit)
 benford_dist = {d: np.log10(1 + 1/d) for d in range(1, 10)}
@@ -160,7 +140,6 @@ data1['Hour'] = data1['Timestamp'].dt.hour
 data1['gap'] = (data1['Timestamp'] - data1['LastLogin']).dt.days.abs()
 
 # 3. Create Amount-based features on 'data1'
-# Returns 1 if it's a suspicious "clean" number, 0 otherwise
 data1['Is_Round_Amount'] = data1['TransactionAmount'].apply(lambda x: 1 if x % 100 == 0 or x % 500 == 0 else 0)
 
 # 4. Day of Week features
@@ -174,13 +153,8 @@ data1['Is_Weekend'] = data1['DayOfWeek'].apply(lambda x: 1 if x >= 5 else 0)
 data1['Is_Night_Trans'] = data1['Hour'].apply(lambda x: 1 if 1 <= x <= 5 else 0)
 
 # 5. Advanced Profile Features
-# Calculate the average transaction amount for this specific Customer (using transform so it stays aligned)
-
-
-# RE-DOING DATA1 CREATION to preserve IDs for feature engineering, then drop them later.
 columns_to_drop_final = ['TransactionID','MerchantID','CustomerID','Name', 'Age', 'Address', 'Timestamp', 'LastLogin']
 
-# Re-calculate these on the main dataframe 'data' FIRST, before creating 'data1'
 data['Timestamp'] = pd.to_datetime(data['Timestamp'])
 data['LastLogin'] = pd.to_datetime(data['LastLogin'])
 data['Hour'] = data['Timestamp'].dt.hour
